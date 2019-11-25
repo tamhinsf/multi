@@ -25,67 +25,67 @@
         },
         "vnetPrefix": {
             "type": "string",
-            "defaultValue": "10.1.0.0/16",
+            "defaultValue": "10.0.0.0/16",
             "metadata": {
                 "description": "CIDR block for the vNet"
             }
         },
-        "agSubnetName": {
+        "appGwSubnetName": {
             "type": "string",
-            "defaultValue": "ag-subnet",
+            "defaultValue": "appgw-subnet",
             "metadata": {
-                "description": "Name of the ag subnet"
+                "description": "Name of the public subnet"
             }
         },
-        "agSubnetPrefix": {
+        "appGwSubnetPrefix": {
             "type": "string",
-            "defaultValue": "10.1.0.0/24",
+            "defaultValue": "10.0.1.0/24",
             "metadata": {
-                "description": "CIDR block for the ag subnet"
+                "description": "CIDR block for the appgw subnet"
+            }
+        }, 
+        "publicSubnetName": {
+            "type": "string",
+            "defaultValue": "public-subnet",
+            "metadata": {
+                "description": "Name of the public subnet"
             }
         },
-        "serverSubnetName": {
+        "publicSubnetPrefix": {
             "type": "string",
-            "defaultValue": "server-subnet",
+            "defaultValue": "10.0.2.0/24",
             "metadata": {
-                "description": "Name of the server subnet"
+                "description": "CIDR block for the public subnet"
             }
         },
-        "serverSubnetPrefix": {
+        "privateSubnetName": {
             "type": "string",
-            "defaultValue": "10.1.1.0/24",
+            "defaultValue": "private-subnet",
             "metadata": {
-                "description": "CIDR block for the server subnet"
+                "description": "Name of the private subnet"
             }
         },
-        "cassandraSubnetName": {
+        "privateSubnetPrefix": {
             "type": "string",
-            "defaultValue": "cassandra-subnet",
+            "defaultValue": "10.0.3.0/24",
             "metadata": {
-                "description": "Name of the cassandra subnet"
+                "description": "CIDR block for the private subnet"
+            }
+        },       
+        "adminSubnetName": {
+            "type": "string",
+            "defaultValue": "admin-subnet",
+            "metadata": {
+                "description": "Name of the admin subnet"
             }
         },
-        "cassandraSubnetPrefix": {
+        "adminSubnetPrefix": {
             "type": "string",
-            "defaultValue": "10.1.2.0/24",
+            "defaultValue": "10.0.4.0/24",
             "metadata": {
-                "description": "CIDR block for the cassandra subnet"
+                "description": "CIDR block for the admin subnet"
             }
-        },
-        "elasticSubnetName": {
-            "type": "string",
-            "defaultValue": "elastic-subnet",
-            "metadata": {
-                "description": "Name of the elastic subnet"
-            }
-        },
-        "elasticSubnetPrefix": {
-            "type": "string",
-            "defaultValue": "10.1.3.0/24",
-            "metadata": {
-                "description": "CIDR block for the elastic subnet"
-            }
-        },
+        }, 
         "agVmName": {
             "type": "string",
             "defaultValue": "ag-vm",
@@ -154,7 +154,7 @@
         },
         "cassandraVmInstanceCount": {
             "type": "int",
-            "defaultValue": 6,
+            "defaultValue": 3,
             "metadata": {
                 "description": "Number of VM instances."
             },
@@ -235,15 +235,40 @@
         }
     },
     "variables": {
+        "uniqueString": "[uniqueString(resourceGroup().id)]",
         "location": "[parameters('location')]",
         "vnetName": "[parameters('vnetName')]",
+        "appGwSubnetName": "[parameters('appGwSubnetName')]",
+        "publicSubnetName": "[parameters('publicSubnetName')]",
+        "publicSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('publicSubnetName'))]",
+        "publicSubnetNsg": "[concat(variables('vnetName'),'-',variables('publicSubnetName'),variables('suffixForNsg'))]",
+        "privateSubnetName": "[parameters('privateSubnetName')]",
+        "privateSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('privateSubnetName'))]",
+        "privateSubnetNsg" : "[concat(variables('vnetName'),'-',variables('privateSubnetName'), variables('suffixForNsg'))]", 
+        "adminSubnetName": "[parameters('adminSubnetName')]",
+        "adminSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('adminSubnetName'))]",
+        "adminSubnetNsg" : "[concat(variables('vnetName'),'-',variables('adminSubnetName'), variables('suffixForNsg'))]", 
+        "appGwName": "[concat('appgw-',variables('uniqueString'))]",
+        "appGwPublicIPAddressName": "[concat(variables('appGwName'),variables('suffixForIpConfig'))]",
+        "appGwPublicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',variables('appGwPublicIPAddressName'))]",
+        "appGwID": "[resourceId('Microsoft.Network/applicationGateways',variables('appGwName'))]",
+        "appGwSubnetID": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('appGwSubnetName'))]",
+        "appGwBePoolName": "[concat(variables('agNamingInfix'), variables('suffixForAgPool'))]",
+        "appGwFrontendPortForHttp": 80,
+        "appGwBackendPortForHttp": 80,
+        "appGwBePoolNameOutboundInternet" : "appGwOutboundInternet",
+        "storageAccountName": "[concat(toLower(substring(concat('storage', variables('uniqueString')), 0, 16)))]",
+        "storageAccountRef" : "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]",
+        "privateEndpointName" : "[concat(variables('storageAccountName'),'-','privateEndpoint')]",
+        "privateEndpointConnectionName" : "[concat(variables('privateEndpointName'),'-','connectionName')]",
         "jumpBoxName": "[concat(toLower(substring(concat(parameters('jumpBoxName'), '-', variables('uniqueString')), 0, 16)),'-vm')]",
         "jumpBoxIpConfigName": "[concat(variables('jumpBoxName'), variables('suffixForIpConfig'))]",
         "jumpBoxPublicIPName": "[concat(variables('jumpBoxName'), variables('suffixForPublicIp'))]",
         "jumpBoxNicName": "[concat(variables('jumpBoxName'), variables('suffixForNic'))]",
+        "jumpBoxNsgName": "[concat(variables('jumpBoxName'), variables('suffixForNsg'))]",
         "jumpBoxRoleGuid": "[guid(variables('jumpBoxName'))]",
-        "scriptBasePath": "https://tamhinsfpublic.blob.core.windows.net/dtrace/",
         "agNamingInfix": "[toLower(parameters('agVmName'))]",
+        "agPublicIpName": "[concat(variables('agNamingInfix'), variables('suffixForPublicIp'))]",
         "agNicName": "[concat(variables('agNamingInfix'), variables('suffixForNic'))]",
         "serverNamingInfix": "[toLower(parameters('serverVmName'))]",
         "serverNicName": "[concat(variables('serverNamingInfix'), variables('suffixForNic'))]",
@@ -251,50 +276,21 @@
         "cassandraNicName": "[concat(variables('cassandraNamingInfix'), variables('suffixForNic'))]",
         "elasticNamingInfix": "[toLower(parameters('elasticVmName'))]",
         "elasticNicName": "[concat(variables('elasticNamingInfix'), variables('suffixForNic'))]",
-        "agSubnetName": "[parameters('agSubnetName')]",
-        "agSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('agSubnetName'))]",
-        "agLbName": "[concat(variables('agSubnetName'), variables('suffixForLoadBalancer'))]",
-        "agLbPublicIpName": "[concat(variables('agLbName'), variables('uniqueString'), variables('suffixForPublicIp'))]",
-        "agLbId": "[resourceId('Microsoft.Network/loadBalancers',variables('agLbName'))]",
-        "agLbFrontEndIpConfigId": "[concat(variables('agLbId'),'/frontendIPConfigurations/loadBalancerFrontEnd')]",
-        "agLbBePoolName": "[concat(variables('agNamingInfix'), variables('suffixForBePool'))]",
-        "agNsgName": "[concat(variables('agSubnetName'), variables('suffixForNsg'))]",
-        "serverSubnetName": "[parameters('serverSubnetName')]",
-        "serverSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('serverSubnetName'))]",
-        "serverLbName": "[concat(variables('serverSubnetName'), variables('suffixForLoadBalancer'))]",
-        "serverLbId": "[resourceId('Microsoft.Network/loadBalancers',variables('serverLbName'))]",
-        "serverLbFrontEndIpConfigId": "[concat(variables('serverLbId'),'/frontendIPConfigurations/loadBalancerFrontEnd')]",
-        "serverLbBePoolName": "[concat(variables('serverNamingInfix'), variables('suffixForServerPool'))]",
-        "serverNsgName": "[concat(variables('serverSubnetName'), variables('suffixForNsg'))]",
-        "cassandraSubnetName": "[parameters('cassandraSubnetName')]",
-        "cassandraSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('cassandraSubnetName'))]",
-        "cassandraNsgName": "[concat(variables('cassandraSubnetName'), variables('suffixForNsg'))]",
-        "elasticSubnetName": "[parameters('elasticSubnetName')]",
-        "elasticSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('elasticSubnetName'))]",
-        "elasticLbName": "[concat(variables('elasticSubnetName'), variables('suffixForLoadBalancer'))]",
-        "elasticLbId": "[resourceId('Microsoft.Network/loadBalancers',variables('elasticLbName'))]",
-        "elasticLbFrontEndIpConfigId": "[concat(variables('elasticLbId'),'/frontendIPConfigurations/loadBalancerFrontEnd')]",
-        "elasticLbBePoolName": "[concat(variables('elasticNamingInfix'), variables('suffixForElasticPool'))]",
-        "elasticNsgName": "[concat(variables('elasticSubnetName'), variables('suffixForNsg'))]",
+        "imageReference": "[variables('osType')]",
         "osType": {
             "publisher": "OpenLogic",
             "offer": "CentOS",
             "sku": "7.7",
             "version": "latest"
         },
-        "imageReference": "[variables('osType')]",
+        "suffixForAgPool" : "-appGwPool",
         "suffixForIpConfig": "-ipconfig",
-        "suffixForBePool": "-bePool",
-        "suffixForServerPool": "-serverPool",
-        "suffixForElasticPool": "-elasticPool",
         "suffixForNic": "-nic",
         "suffixForPublicIp": "-pip",
-        "suffixForLoadBalancer": "-lb",
         "suffixForNsg": "-nsg",
-        "storageAccountName": "[concat(toLower(substring(concat('storage', variables('uniqueString')), 0, 16)))]",
-        "uniqueString": "[uniqueString(resourceGroup().id)]",
         "roleGuidForContributor": "b24988ac-6180-42a0-ab88-20f7382dd24c",
         "roleGuidForStorageAccountContributor": "17d1049b-9a84-46fb-8f53-869881c3d3ab",
+        "scriptBasePath": "https://tamhinsfpublic.blob.core.windows.net/dtrace/",
         "scriptInstallAzureCli": "installAzureCli.sh",
         "scriptMountDataDisks": "mountDataDisks.sh",
         "scriptMountAzureFiles": "mountAzureFiles.sh",
@@ -305,7 +301,12 @@
             "type": "Microsoft.Network/virtualNetworks",
             "name": "[variables('vnetName')]",
             "location": "[variables('location')]",
-            "apiVersion": "2017-06-01",
+            "apiVersion": "2019-09-01",
+            "dependsOn": [
+                "[variables('privateSubnetNsg')]",
+                "[variables('publicSubnetNsg')]",
+                "[variables('jumpBoxNsgName')]"
+            ],
             "properties": {
                 "addressSpace": {
                     "addressPrefixes": [
@@ -314,27 +315,37 @@
                 },
                 "subnets": [
                     {
-                        "name": "[variables('agSubnetName')]",
+                        "name": "[variables('appGwSubnetName')]",
                         "properties": {
-                            "addressPrefix": "[parameters('agSubnetPrefix')]"
+                            "addressPrefix": "[parameters('appGwSubnetPrefix')]"
+                        }
+                    },                
+                    {
+                        "name": "[variables('publicSubnetName')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('publicSubnetPrefix')]",
+                            "networkSecurityGroup": {
+                                "id" : "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('publicSubnetNsg'))]"
+                            }              
+                        }     
+                    },
+                    {
+                        "name": "[variables('privateSubnetName')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('privateSubnetPrefix')]",
+                            "networkSecurityGroup": {
+                                "id" : "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('privateSubnetNsg'))]"
+                            },
+                            "privateEndpointNetworkPolicies" : "Disabled"
                         }
                     },
                     {
-                        "name": "[variables('serverSubnetName')]",
-                        "properties": {
-                            "addressPrefix": "[parameters('serverSubnetPrefix')]"
-                        }
-                    },
-                    {
-                        "name": "[variables('cassandraSubnetName')]",
-                        "properties": {
-                            "addressPrefix": "[parameters('cassandraSubnetPrefix')]"
-                        }
-                    },
-                    {
-                        "name": "[variables('elasticSubnetName')]",
-                        "properties": {
-                            "addressPrefix": "[parameters('elasticSubnetPrefix')]"
+                        "name": "[variables('adminSubnetName')]",
+                        "properties" : {
+                            "addressPrefix": "[parameters('adminSubnetPrefix')]",
+                            "networkSecurityGroup": {
+                                 "id" : "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('jumpBoxNsgName'))]"
+                            }
                         }
                     }
                 ]
@@ -343,7 +354,30 @@
         {
             "apiVersion": "2017-06-01",
             "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "[variables('agNsgName')]",
+            "name": "[variables('jumpboxNsgName')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "allowSsh",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            }
+        },        
+        {
+            "apiVersion": "2017-06-01",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[variables('publicSubnetNsg')]",
             "location": "[variables('location')]",
             "properties": {
                 "securityRules": [
@@ -354,20 +388,20 @@
                             "sourcePortRange": "*",
                             "destinationPortRange": "80",
                             "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('agSubnetPrefix')]",
+                            "destinationAddressPrefix": "*",
                             "access": "Allow",
                             "priority": 100,
                             "direction": "Inbound"
                         }
                     },
                     {
-                        "name": "allowSsh",
+                        "name": "allowSshFromAdminSubnet",
                         "properties": {
                             "protocol": "Tcp",
                             "sourcePortRange": "*",
                             "destinationPortRange": "22",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('agSubnetPrefix')]",
+                            "sourceAddressPrefix": "[parameters('adminSubnetPrefix')]",
+                            "destinationAddressPrefix": "*",
                             "access": "Allow",
                             "priority": 101,
                             "direction": "Inbound"
@@ -379,112 +413,52 @@
         {
             "apiVersion": "2017-06-01",
             "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "[variables('serverNsgName')]",
+            "name": "[variables('privateSubnetNsg')]",
             "location": "[variables('location')]",
             "properties": {
                 "securityRules": [
                     {
-                        "name": "allowHttp",
+                        "name": "allowHttpFromPublicSubnet",
                         "properties": {
                             "protocol": "Tcp",
                             "sourcePortRange": "*",
                             "destinationPortRange": "80",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('serverSubnetPrefix')]",
+                            "sourceAddressPrefix": "[parameters('publicSubnetPrefix')]",
+                            "destinationAddressPrefix": "[parameters('privateSubnetPrefix')]",
                             "access": "Allow",
                             "priority": 100,
                             "direction": "Inbound"
                         }
                     },
                     {
-                        "name": "allowSsh",
+                        "name": "allowSshFromAdminSubnet",
                         "properties": {
                             "protocol": "Tcp",
                             "sourcePortRange": "*",
                             "destinationPortRange": "22",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('serverSubnetPrefix')]",
+                            "sourceAddressPrefix": "[parameters('adminSubnetPrefix')]",
+                            "destinationAddressPrefix": "[parameters('privateSubnetPrefix')]",
                             "access": "Allow",
                             "priority": 101,
-                            "direction": "Inbound"
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            "apiVersion": "2017-06-01",
-            "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "[variables('cassandraNsgName')]",
-            "location": "[variables('location')]",
-            "properties": {
-                "securityRules": [
-                    {
-                        "name": "allowHttp",
-                        "properties": {
-                            "protocol": "Tcp",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "80",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('cassandraSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 100,
                             "direction": "Inbound"
                         }
                     },
                     {
-                        "name": "allowSsh",
+                        "name": "denyAll",
                         "properties": {
-                            "protocol": "Tcp",
+                            "protocol": "*",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "22",
+                            "destinationPortRange": "*",
                             "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('cassandraSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 101,
+                            "destinationAddressPrefix": "[parameters('privateSubnetPrefix')]",
+                            "access": "Deny",
+                            "priority": 102,
                             "direction": "Inbound"
                         }
                     }
                 ]
             }
-        },
-        {
-            "apiVersion": "2017-06-01",
-            "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "[variables('elasticNsgName')]",
-            "location": "[variables('location')]",
-            "properties": {
-                "securityRules": [
-                    {
-                        "name": "allowHttp",
-                        "properties": {
-                            "protocol": "Tcp",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "80",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('elasticSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 100,
-                            "direction": "Inbound"
-                        }
-                    },
-                    {
-                        "name": "allowSsh",
-                        "properties": {
-                            "protocol": "Tcp",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "22",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[parameters('elasticSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 101,
-                            "direction": "Inbound"
-                        }
-                    }
-                ]
-            }
-        },
-        {
+        },        {
             "type": "Microsoft.Network/publicIPAddresses",
             "name": "[variables('jumpBoxPublicIpName')]",
             "location": "[variables('location')]",
@@ -516,11 +490,15 @@
                                 "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('jumpBoxPublicIpName'))]"
                             },
                             "subnet": {
-                                "id": "[variables('agSubnetRef')]"
+                                "id": "[variables('adminSubnetRef')]"
                             }
                         }
                     }
-                ]
+                ],
+                "networkSecurityGroup":{
+                   "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('jumpBoxNsgName'))]"
+                }
+
             }
         },
         {
@@ -625,243 +603,111 @@
         },
         {
             "type": "Microsoft.Network/publicIPAddresses",
-            "name": "[variables('agLbPublicIpName')]",
-            "location": "[variables('location')]",
-            "apiVersion": "2018-10-01",
-            "sku": {
-                "name": "Standard"
+            "name": "[variables('appGwPublicIPAddressName')]",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2019-04-01",
+            "sku" : {
+                "name" : "Standard"
             },
             "properties": {
-                "publicIPAllocationMethod": "Static",
-                "dnsSettings": {
-                    "domainNameLabel": "[variables('agLbPublicIpName')]"
-                }
+                "publicIPAllocationMethod": "Static"
             }
         },
         {
-            "type": "Microsoft.Network/loadBalancers",
-            "name": "[variables('agLbName')]",
-            "location": "[variables('location')]",
-            "apiVersion": "2018-08-01",
-            "sku": {
-                "name": "Standard"
-            },
+            "type": "Microsoft.Network/applicationGateways",
+            "name": "[variables('appGwName')]",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2019-09-01",
             "dependsOn": [
-                "[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]"
+                "[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('appGwPublicIPAddressName'))]"
+            ],
+            "zones" : [
+                "1",
+                "2",
+                "3"
             ],
             "properties": {
-                "frontendIPConfigurations": [
+                "sku": {
+                    "name": "Standard_v2",
+                    "tier": "Standard_v2",
+                    "capacity": 3
+                },
+                "gatewayIPConfigurations": [
                     {
-                        "name": "LoadBalancerFrontEnd",
-                        "properties": {
-                            "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('agLbPublicIpName'))]"
-                            }
-                        }
-                    }
-                ],
-                "backendAddressPools": [
-                    {
-                        "name": "[variables('agLbBePoolName')]"
-                    },
-                    {
-                        "name": "outboundPoolForInternet"
-                    }
-                ],
-                "loadBalancingRules": [
-                    {
-                        "name": "adminUiLbRuleForAg",
-                        "properties": {
-                            "disableOutboundSnat" : true,
-                            "frontendIPConfiguration": {
-                                "id": "[variables('agLbFrontEndIpConfigId')]"
-                            },
-                            "frontendPort": 22,
-                            "backendPort": 22,
-                            "enableFloatingIP": false,
-                            "idleTimeoutInMinutes": 4,
-                            "protocol": "Tcp",
-                            "loadDistribution": "Default",
-                            "backendAddressPool": {
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', variables('agLbBePoolName'))]"
-                            },
-                            "probe": {
-                                "id": "[concat(variables('agLbId'), '/probes/sshHealthCheck')]"
-                            }
-                        }
-                    },
-                    {                      
-                        "name": "httpLbRuleForAg",
-                        "properties": {
-                            "disableOutboundSnat" : true,
-                            "frontendIPConfiguration": {
-                                "id": "[variables('agLbFrontEndIpConfigId')]"
-                            },
-                            "frontendPort": 80,
-                            "backendPort": 80,
-                            "enableFloatingIP": false,
-                            "idleTimeoutInMinutes": 4,
-                            "protocol": "Tcp",
-                            "loadDistribution": "Default",
-                            "backendAddressPool": {
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', variables('agLbBePoolName'))]"
-                            },
-                            "probe": {
-                                "id": "[concat(variables('agLbId'), '/probes/sshHealthCheck')]"
-                            }
-                        }
-                    }
-                ],
-                "probes": [
-                    {
-                        "name": "sshHealthCheck",
-                        "properties": {
-                            "protocol": "Tcp",
-                            "port": 22,
-                            "intervalInSeconds": 60,
-                            "numberOfProbes": 1000
-                        }
-                    }
-                ],
-                "outboundRules": [
-                    {
-                        "name": "outboundRule", 
-                        "properties": {
-                            "backendAddressPool": {
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', 'outboundPoolForInternet')]"
-                            },
-                            "frontendIPConfigurations": [
-                                {
-                                    "id": "[variables('agLbFrontEndIpConfigId')]"
-                                }
-                            ],
-                            "protocol": "All"
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            "type": "Microsoft.Network/loadBalancers",
-            "name": "[variables('serverLbName')]",
-            "location": "[variables('location')]",
-            "apiVersion": "2018-08-01",
-            "sku": {
-                "name": "Standard"
-            },
-            "dependsOn": [
-                "[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]"
-            ],
-            "properties": {
-                "frontendIPConfigurations": [
-                    {
-                        "name": "LoadBalancerFrontEnd",
+                        "name": "appGwIpConfig",
                         "properties": {
                             "subnet": {
-                                "id": "[variables('agSubnetRef')]"
-                            },
-                            "privateIPAllocationMethod": "Dynamic"
-                        }
-                    }
-                ],
-                "backendAddressPools": [
-                    {
-                        "name": "[variables('serverLbBePoolName')]"
-                    }
-                ],
-                "loadBalancingRules": [
-                    {
-                        "name": "adminUiLbRuleForServer",
-                        "properties": {
-                            "frontendIPConfiguration": {
-                                "id": "[variables('serverLbFrontEndIpConfigId')]"
-                            },
-                            "frontendPort": 22,
-                            "backendPort": 22,
-                            "enableFloatingIP": false,
-                            "idleTimeoutInMinutes": 4,
-                            "protocol": "Tcp",
-                            "loadDistribution": "Default",
-                            "backendAddressPool": {
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('serverLbName'), '/backendAddressPools/', variables('serverLbBePoolName'))]"
-                            },
-                            "probe": {
-                                "id": "[concat(variables('serverLbId'), '/probes/sshHealthCheck')]"
+                                "id": "[variables('appGwSubnetID')]"
                             }
                         }
                     }
                 ],
-                "probes": [
-                    {
-                        "name": "sshHealthCheck",
-                        "properties": {
-                            "protocol": "Tcp",
-                            "port": 22,
-                            "intervalInSeconds": 60,
-                            "numberOfProbes": 1000
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            "type": "Microsoft.Network/loadBalancers",
-            "name": "[variables('elasticLbName')]",
-            "location": "[variables('location')]",
-            "apiVersion": "2018-08-01",
-            "sku": {
-                "name": "Standard"
-            },
-            "dependsOn": [
-                "[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]"
-            ],
-            "properties": {
                 "frontendIPConfigurations": [
                     {
-                        "name": "LoadBalancerFrontEnd",
+                        "name": "appGwFrontendIP",
                         "properties": {
-                            "subnet": {
-                                "id": "[variables('serverSubnetRef')]"
-                            },
-                            "privateIPAllocationMethod": "Dynamic"
+                            "PublicIPAddress": {
+                                "id": "[variables('appGwPublicIPAddressID')]"
+                            }
+                        }
+                    }
+                ],
+                "frontendPorts": [
+                    {
+                        "name": "appGwFrontendPort",
+                        "properties": {
+                            "Port": "[variables('appGwFrontendPortForHttp')]"
                         }
                     }
                 ],
                 "backendAddressPools": [
                     {
-                        "name": "[variables('elasticLbBePoolName')]"
-                    }
-                ],
-                "loadBalancingRules": [
+                        "name": "[variables('appGwBePoolName')]"
+                    },
                     {
-                        "name": "adminUiLbRuleForElastic",
+                        "name": "[variables('appGwBePoolNameOutboundInternet')]"
+                    }                
+                ],
+                "backendHttpSettingsCollection": [
+                    {
+                        "name": "appGwBackendHttpSettings",
                         "properties": {
-                            "frontendIPConfiguration": {
-                                "id": "[variables('elasticLbFrontEndIpConfigId')]"
-                            },
-                            "frontendPort": 22,
-                            "backendPort": 22,
-                            "enableFloatingIP": false,
-                            "idleTimeoutInMinutes": 4,
-                            "protocol": "Tcp",
-                            "loadDistribution": "Default",
-                            "backendAddressPool": {
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('elasticLbName'), '/backendAddressPools/', variables('elasticLbBePoolName'))]"
-                            },
-                            "probe": {
-                                "id": "[concat(variables('elasticLbId'), '/probes/sshHealthCheck')]"
-                            }
+                            "Port": "[variables('appGwBackendPortForHttp')]",
+                            "Protocol": "Http",
+                            "CookieBasedAffinity": "Disabled"
                         }
                     }
                 ],
-                "probes": [
+                "httpListeners": [
                     {
-                        "name": "sshHealthCheck",
+                        "name": "appGwHttpListener",
                         "properties": {
-                            "protocol": "Tcp",
-                            "port": 22,
-                            "intervalInSeconds": 60,
-                            "numberOfProbes": 1000
+                            "FrontendIPConfiguration": {
+                                "Id": "[concat(variables('appGwID'), '/frontendIPConfigurations/appGwFrontendIP')]"
+                            },
+                            "FrontendPort": {
+                                "Id": "[concat(variables('appGwID'), '/frontendPorts/appGwFrontendPort')]"
+                            },
+                            "Protocol": "Http",
+                            "SslCertificate": null
+                        }
+                    }                  
+                ],
+                "requestRoutingRules": [
+                    {
+                        "Name": "rule1",
+                        "properties": {
+                            "RuleType": "Basic",
+                            "httpListener": {
+                                "id": "[concat(variables('appGwID'), '/httpListeners/appGwHttpListener')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[concat(variables('appGwID'), '/backendAddressPools/', variables('appGwBePoolName'))]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[concat(variables('appGwID'), '/backendHttpSettingsCollection/appGwBackendHttpSettings')]"
+                            }
                         }
                     }
                 ]
@@ -872,6 +718,9 @@
             "apiVersion": "2019-06-01",
             "name": "[variables('storageAccountName')]",
             "location": "[parameters('location')]",
+            "dependsOn" : [
+                "[variables('vnetName')]"
+            ],
             "tags": {
                 "dt": "serverlogstorage"
             },
@@ -882,7 +731,12 @@
             },
             "properties": {
                 "accessTier": "Hot",
-                "largeFileSharesState": "Enabled"
+                "largeFileSharesState": "Enabled",
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "defaultAction": "Deny",
+                    "ipRules": []
+                }
             }
         },
         {
@@ -892,6 +746,52 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
             ]
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[concat(variables('agPublicIpName'),copyindex())]",
+            "location": "[variables('location')]",
+            "apiVersion": "2017-08-01",
+            "sku" : {
+                "name" : "Standard"
+            },
+            "copy": {
+                "name": "[concat(variables('agPublicIpName'), 'pipLoop')]",
+                "count": "[parameters('agVmInstanceCount')]"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat(variables('agPublicIpName'),copyindex(),variables('uniqueString'),'-pip')]"
+                }
+            }
+        },
+  {
+            "apiVersion": "2019-04-01",
+            "name": "[variables('privateEndpointName')]",
+            "type": "Microsoft.Network/privateEndpoints",
+            "location": "[parameters('location')]",
+            "dependsOn" : [
+                "[variables('vnetName')]",
+                "[variables('storageAccountName')]"
+            ],
+            "properties": {
+                "privateLinkServiceConnections": [
+                    {
+                        "name": "[variables('privateEndpointConnectionName')]",
+                        "properties": {
+                            "privateLinkServiceId": "[variables('storageAccountRef')]",
+                            "groupIds": [
+                                "file"
+                            ]
+                        }
+                    }
+                ],
+                "manualPrivateLinkServiceConnections": [],
+                "subnet": {
+                    "id": "[variables('privateSubnetRef')]"
+                }
+            }
         },
         {
             "apiVersion": "2017-08-01",
@@ -904,8 +804,9 @@
             },
             "dependsOn": [
                 "[variables('vnetName')]",
-                "[variables('agNsgName')]",
-                "[variables('agLbName')]"
+                "[variables('publicSubnetNsg')]",
+                "[variables('appGwName')]",
+                "[concat(variables('agPublicIpName'), 'pipLoop')]"
             ],
             "properties": {
                 "enableAcceleratedNetworking": "[parameters('agVmEnableAnet')]",
@@ -914,22 +815,22 @@
                         "name": "ipconfig1",
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
-                            "subnet": {
-                                "id": "[variables('agSubnetRef')]"
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses',concat(variables('agPublicIpName'),copyindex()))]"
                             },
-                            "loadBalancerBackendAddressPools": [
+                            "subnet": {
+                                "id": "[variables('publicSubnetRef')]"
+                            },
+                            "ApplicationGatewayBackendAddressPools": [
                                 {
-                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', variables('agLbBePoolName'))]"
-                                },
-                                {
-                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', 'outboundPoolForInternet')]"
-                                }                                
+                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/applicationGateways/', variables('appGwName'), '/backendAddressPools/', variables('appGwBePoolName'))]"
+                                }   
                             ]
                         }
                     }
                 ],
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('agNsgName'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('publicSubnetNsg'))]"
                 }
             }
         },
@@ -1001,7 +902,6 @@
                             "fileUris": [
                                 "[concat(variables('scriptBasePath'),variables('scriptMountDataDisks'))]",
                                 "[concat(variables('scriptBasePath'),variables('scriptInstallSoftware'))]"
-
                             ]
                         },
                         "protectedSettings": {
@@ -1022,9 +922,7 @@
             },
             "dependsOn": [
                 "[variables('vnetName')]",
-                "[variables('agLbName')]",
-                "[variables('serverLbName')]",
-                "[variables('serverNsgName')]"
+                "[variables('appGwName')]"
             ],
             "properties": {
                 "enableAcceleratedNetworking": "[parameters('serverVmEnableAnet')]",
@@ -1034,22 +932,11 @@
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "subnet": {
-                                "id": "[variables('serverSubnetRef')]"
-                            },
-                            "loadBalancerBackendAddressPools": [
-                                {
-                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('serverLbName'), '/backendAddressPools/', variables('serverLbBePoolName'))]"
-                                },
-                                {
-                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', 'outboundPoolForInternet')]"
-                                }
-                            ]
+                                "id": "[variables('privateSubnetRef')]"
+                            }                      
                         }
                     }
-                ],
-                "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('serverNsgName'))]"
-                }
+                ]
             }
         },
         {
@@ -1120,7 +1007,8 @@
                     "apiVersion": "2018-06-01",
                     "location": "[variables('location')]",
                     "dependsOn": [
-                        "[concat(variables('serverNamingInfix'), copyindex())]"
+                        "[concat(variables('serverNamingInfix'), copyindex())]",
+                        "[variables('privateEndpointName')]"
                     ],
                     "properties": {
                         "publisher": "Microsoft.Azure.Extensions",
@@ -1153,8 +1041,7 @@
             },
             "dependsOn": [
                 "[variables('vnetName')]",
-                "[variables('cassandraNsgName')]",
-                "[variables('agLbName')]"
+                "[variables('appGwName')]"
             ],
             "properties": {
                 "enableAcceleratedNetworking": "[parameters('cassandraVmEnableAnet')]",
@@ -1164,19 +1051,11 @@
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "subnet": {
-                                "id": "[variables('cassandraSubnetRef')]"
-                            },
-                            "loadBalancerBackendAddressPools": [
-                                {
-                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', 'outboundPoolForInternet')]"
-                                }
-                            ]
+                                "id": "[variables('privateSubnetRef')]"
+                            }                          
                         }
                     }
-                ],
-                "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('cassandraNsgName'))]"
-                }
+                ]
             }
         },
         {
@@ -1245,13 +1124,11 @@
                         "autoUpgradeMinorVersion": true,
                         "settings": {
                             "fileUris": [
-                                "[concat(variables('scriptBasePath'),variables('scriptMountDataDisks'))]",
-                                "[concat(variables('scriptBasePath'),variables('scriptInstallSoftware'))]"
-
+                                "[concat(variables('scriptBasePath'),variables('scriptMountDataDisks'))]"
                             ]
                         },
                         "protectedSettings": {
-                            "commandToExecute": "[concat('bash ', variables('scriptMountDataDisks'),';','bash ', variables('scriptInstallSoftware'))]"
+                            "commandToExecute": "[concat('bash ', variables('scriptMountDataDisks'))]"
                         }
                     }
                 }
@@ -1268,9 +1145,7 @@
             },
             "dependsOn": [
                 "[variables('vnetName')]",
-                "[variables('elasticLbName')]",
-                "[variables('elasticNsgName')]",
-                "[variables('agLbName')]"
+                "[variables('appGwName')]"
             ],
             "properties": {
                 "enableAcceleratedNetworking": "[parameters('elasticVmEnableAnet')]",
@@ -1280,22 +1155,11 @@
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "subnet": {
-                                "id": "[variables('elasticSubnetRef')]"
-                            },
-                            "loadBalancerBackendAddressPools": [
-                                {
-                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('elasticLbName'), '/backendAddressPools/', variables('elasticLbBePoolName'))]"
-                                },
-                                {
-                                    "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('agLbName'), '/backendAddressPools/', 'outboundPoolForInternet')]"
-                                }
-                            ]
+                                "id": "[variables('privateSubnetRef')]"
+                            }
                         }
                     }
-                ],
-                "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('elasticNsgName'))]"
-                }
+                ]
             }
         },
         {
@@ -1364,12 +1228,10 @@
                         "autoUpgradeMinorVersion": true,
                         "settings": {
                             "fileUris": [
-                                "[concat(variables('scriptBasePath'),variables('scriptMountDataDisks'))]",
-                                "[concat(variables('scriptBasePath'),variables('scriptInstallSoftware'))]"
-                            ]
+                                "[concat(variables('scriptBasePath'),variables('scriptMountDataDisks'))]"]
                         },
                         "protectedSettings": {
-                            "commandToExecute": "[concat('bash ', variables('scriptMountDataDisks'),';','bash ', variables('scriptInstallSoftware'))]"
+                            "commandToExecute": "[concat('bash ', variables('scriptMountDataDisks'))]"
                         }
                     }
                 }
