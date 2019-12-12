@@ -39,11 +39,20 @@ fi
 # make the credentials file read only by root
 sudo chmod 600 $smbCredentialFile
 
-httpEndpoint=$(az storage account show \
-    --resource-group $resourceGroupName \
-    --name $storageAccountName \
-    --query "primaryEndpoints.file" | tr -d '"')
-smbPath=$(echo $httpEndpoint | cut -c7-$(expr length $httpEndpoint))$fileShareName
+# get the ip address of the nic associated with the storage account's private endpoint
+# this assumes the name of the storage account is part of the nic name
+# when creating private endpoint for a storage acct, Azure automatically creates a nic containing the storage acct name
+storagePrivateIp=`az network nic list --resource-group $resourceGroupName --query "[?contains(name,'$storageAccountName')].ipConfigurations[0].privateIpAddress" -o tsv`
+
+# httpEndpoint=$(az storage account show \
+#     --resource-group $resourceGroupName \
+#     --name $storageAccountName \
+#     --query "primaryEndpoints.file" | tr -d '"')
+# smbPath=$(echo $httpEndpoint | cut -c7-$(expr length $httpEndpoint))$fileShareName
+
+# mount the Azure Files share using the private endpoint
+httpEndpoint=$(echo $storagePrivateIp)
+smbPath=$(echo //$storagePrivateIp/$fileShareName)
 
 if [ -z "$(grep $smbPath\ $mntPath /etc/fstab)" ]; then
     echo "$smbPath $mntPath cifs nofail,vers=3.0,credentials=$smbCredentialFile,serverino" | sudo tee -a /etc/fstab > /dev/null
